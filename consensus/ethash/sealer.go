@@ -99,11 +99,12 @@ func (ethash *Ethash) mine(block *types.Block, id int, seed uint64, abort chan s
 	var (
 		header  = block.Header()
 		hash    = header.HashNoNonce().Bytes()
-		target  = new(big.Int).Div(maxUint256, header.Difficulty)
-		number  = header.Number.Uint64()
-		dataset = ethash.dataset(number)
+		target  = new(big.Int).Div(maxUint256, header.Difficulty) //target的计算方法是 256/difficulty 的一个int值
+		number  = header.Number.Uint64()                          //当前是第几个区块
+		dataset = ethash.dataset(number)                          //生成一个dataset,也就是搜索和匹配空间
 	)
 	// Start generating random nonces until we abort or find a good one
+	//生成一个临时随机数，直到我们终止或者找到一个合适的临时随机数
 	var (
 		attempts = int64(0)
 		nonce    = seed

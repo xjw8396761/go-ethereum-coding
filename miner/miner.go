@@ -57,6 +57,10 @@ type Miner struct {
 	shouldStart int32 // should start indicates whether we should start after sync
 }
 
+/**
+*利用区块链创建时候的一些配置，以及共识引擎consensus.Engine等参数先是生成一个矿工，然后
+*让矿工注册一个cpu运算引擎，同时通过 update 来监听同步状态并更新挖矿状态
+**/
 func New(eth Backend, config *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine) *Miner {
 	miner := &Miner{
 		eth:      eth,
@@ -80,20 +84,20 @@ func (self *Miner) update() {
 out:
 	for ev := range events.Chan() {
 		switch ev.Data.(type) {
-		case downloader.StartEvent:
-			atomic.StoreInt32(&self.canStart, 0)
-			if self.Mining() {
-				self.Stop()
-				atomic.StoreInt32(&self.shouldStart, 1)
+		case downloader.StartEvent: //如果当前区块处于同步状态中
+			atomic.StoreInt32(&self.canStart, 0) //设置是否能够开启挖矿
+			if self.Mining() {                   //如果处于挖矿状态中
+				self.Stop()                             //停止挖矿
+				atomic.StoreInt32(&self.shouldStart, 1) //将同步结束以后是否应该开启自动挖矿
 				log.Info("Mining aborted due to sync")
 			}
-		case downloader.DoneEvent, downloader.FailedEvent:
-			shouldStart := atomic.LoadInt32(&self.shouldStart) == 1
+		case downloader.DoneEvent, downloader.FailedEvent: //同步区块结束或者同步区块遇到错误
+			shouldStart := atomic.LoadInt32(&self.shouldStart) == 1 //判断应该开启挖矿值是否是1
 
-			atomic.StoreInt32(&self.canStart, 1)
+			atomic.StoreInt32(&self.canStart, 1) //设置能够开启挖矿
 			atomic.StoreInt32(&self.shouldStart, 0)
-			if shouldStart {
-				self.Start(self.coinbase)
+			if shouldStart { //如果应该开启挖矿状态为真
+				self.Start(self.coinbase) //开启挖矿
 			}
 			// unsubscribe. we're only interested in this event once
 			events.Unsubscribe()
@@ -103,15 +107,19 @@ out:
 	}
 }
 
+/**
+* 挖矿
+* coinbase 挖矿挖出来的token存放的地址
+**/
 func (self *Miner) Start(coinbase common.Address) {
 	atomic.StoreInt32(&self.shouldStart, 1)
-	self.SetEtherbase(coinbase)
+	self.SetEtherbase(coinbase) //设置存放token的地址
 
 	if atomic.LoadInt32(&self.canStart) == 0 {
 		log.Info("Network syncing, will start miner afterwards")
 		return
 	}
-	atomic.StoreInt32(&self.mining, 1)
+	atomic.StoreInt32(&self.mining, 1) //挖矿进行中的状态
 
 	log.Info("Starting mining operation")
 	self.worker.start()
