@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+//remote_agent提供了一套RPC接口，可以实现远程矿工进行采矿的功能。比如我有一个矿机，矿机内部没有运行以太坊节点，矿机首先从remote_agent获取当前的任务
+//然后进行挖矿计算，当挖矿完成后，提交结算结果，完成挖矿。
 package miner
 
 import (
@@ -39,16 +41,16 @@ type RemoteAgent struct {
 	mu sync.Mutex
 
 	quitCh   chan struct{}
-	workCh   chan *Work
-	returnCh chan<- *Result
+	workCh   chan *Work     //接受任务
+	returnCh chan<- *Result //返回结果
 
 	chain       consensus.ChainReader
 	engine      consensus.Engine
-	currentWork *Work
-	work        map[common.Hash]*Work
+	currentWork *Work                 //当前任务
+	work        map[common.Hash]*Work //当前还没有提交的任务，正在计算
 
 	hashrateMu sync.RWMutex
-	hashrate   map[common.Hash]hashrate
+	hashrate   map[common.Hash]hashrate //正在结算的任务的hashrate
 
 	running int32 // running indicates whether the agent is active. Call atomically
 }
@@ -168,6 +170,7 @@ func (a *RemoteAgent) SubmitWork(nonce types.BlockNonce, mixDigest, hash common.
 // Note, the reason the work and quit channels are passed as parameters is because
 // RemoteAgent.Start() constantly recreates these channels, so the loop code cannot
 // assume data stability in these member fields.
+//当接收任务的时候，就存放在currentWork字段里面。如果84秒还没有完成一个工作，那么就删除这个工作，如果10秒没有收到hashrate的报告，那么删除这个追踪
 func (a *RemoteAgent) loop(workCh chan *Work, quitCh chan struct{}) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
