@@ -64,6 +64,7 @@ func NewRemoteAgent(chain consensus.ChainReader, engine consensus.Engine) *Remot
 	}
 }
 
+//提交hash算力
 func (a *RemoteAgent) SubmitHashrate(id common.Hash, rate uint64) {
 	a.hashrateMu.Lock()
 	defer a.hashrateMu.Unlock()
@@ -108,6 +109,7 @@ func (a *RemoteAgent) GetHashRate() (tot int64) {
 	return
 }
 
+//方法GetWork由远程矿工调用，获取当前的挖矿任务
 func (a *RemoteAgent) GetWork() ([3]string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -136,6 +138,7 @@ func (a *RemoteAgent) GetWork() ([3]string, error) {
 // SubmitWork tries to inject a pow solution into the remote agent, returning
 // whether the solution was accepted or not (not can be both a bad pow as well as
 // any other error, like no work pending).
+//方法SubmitWork，远程矿工会调用这个方法提交挖矿的结果，对结果进行验证之后提交到retrunCh
 func (a *RemoteAgent) SubmitWork(nonce types.BlockNonce, mixDigest, hash common.Hash) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()

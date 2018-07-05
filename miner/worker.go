@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+//worker内部包含了很多agent，可以包含之前提到的agent和remote_agent。worker同时负责构建区块和对象，同时把任务提供给agent
+
 package miner
 
 import (
@@ -52,6 +54,7 @@ const (
 )
 
 // Agent can register themself with the worker
+//Agent接口
 type Agent interface {
 	Work() chan<- *Work
 	SetReturnCh(chan<- *Result)
@@ -62,11 +65,12 @@ type Agent interface {
 
 // Work is the workers current environment and holds
 // all of the current state information
+//work结构，存储了工作者的当时环境，并且持有所有的暂时的状态信息
 type Work struct {
 	config *params.ChainConfig
-	signer types.Signer
+	signer types.Signer //签名者
 
-	state     *state.StateDB // apply state changes here
+	state     *state.StateDB // apply state changes here  状态数据库
 	ancestors *set.Set       // ancestor set (used for checking uncle parent validity)
 	family    *set.Set       // family set (used for checking uncle invalidity)
 	uncles    *set.Set       // uncle set
@@ -96,21 +100,21 @@ type worker struct {
 
 	// update loop
 	mux          *event.TypeMux
-	txsCh        chan core.NewTxsEvent
-	txsSub       event.Subscription
-	chainHeadCh  chan core.ChainHeadEvent
+	txsCh        chan core.NewTxsEvent    //用来接受txPool里面的交易的通道
+	txsSub       event.Subscription       //用来接受txPool里面的交易的订阅器
+	chainHeadCh  chan core.ChainHeadEvent //用来接受区块头的通道
 	chainHeadSub event.Subscription
-	chainSideCh  chan core.ChainSideEvent
+	chainSideCh  chan core.ChainSideEvent //用来接受一个区块链从规范区块链移除的通道
 	chainSideSub event.Subscription
 	wg           sync.WaitGroup
 
 	agents map[Agent]struct{}
 	recv   chan *Result
 
-	eth     Backend
+	eth     Backend //eth的协议
 	chain   *core.BlockChain
-	proc    core.Validator
-	chainDb ethdb.Database
+	proc    core.Validator //验证起
+	chainDb ethdb.Database //数据库
 
 	coinbase common.Address
 	extra    []byte
@@ -384,6 +388,7 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 	return nil
 }
 
+//提交新的任务
 func (self *worker) commitNewWork() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
